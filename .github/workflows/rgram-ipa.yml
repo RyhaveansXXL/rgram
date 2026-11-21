@@ -7,7 +7,7 @@ name: R Gram IPA
 # Optional repository variables (Settings ▸ Secrets and variables ▸ Actions ▸ Variables):
 #   RGRAM_API_BASE  HTTPS base URL of the R Gram registry (see rgram-server/). Empty = banners and
 #                   R Premium badges of other users are disabled.
-#   RGRAM_RUNNER    Runner label that has the Xcode version from versions.json (default: macos-latest).
+#   RGRAM_RUNNER    Runner label that has the Xcode version from versions.json (default: xcode-27, GitHub's macOS 27 / Xcode 27 image).
 
 on:
   push:
@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ${{ vars.RGRAM_RUNNER || 'macos-latest' }}
+    runs-on: ${{ vars.RGRAM_RUNNER || 'xcode-27' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -29,8 +29,19 @@ jobs:
 
       - name: Set active Xcode path
         run: |
-          XCODE_VERSION=$(python3 -c 'import json;print(json.load(open("versions.json"))["xcode"])')
-          sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
+          WANTED=$(python3 -c 'import json;print(json.load(open("versions.json"))["xcode"])')
+          if [ -d "/Applications/Xcode_$WANTED.app" ]; then
+            XCODE_APP="/Applications/Xcode_$WANTED.app"
+          else
+            # Exact version from versions.json is not installed: use the newest installed Xcode 27.x
+            XCODE_APP=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+          fi
+          if [ -z "$XCODE_APP" ]; then
+            echo "No Xcode 27 found on this runner. Installed:"; ls -d /Applications/Xcode*; exit 1
+          fi
+          echo "Using $XCODE_APP (wanted $WANTED)"
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
 
       - name: Inject R Gram configuration
         env:
@@ -60,6 +71,7 @@ jobs:
 
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           python3 -u build-system/Make/Make.py \
+            --overrideXcodeVersion \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
             build \
             --configurationPath="build-system/appstore-configuration.json" \
@@ -78,7 +90,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd /Users/Shared/telegram-ios
-          gh release create "build-${BUILD_NUMBER}" build/artifacts/RGram.ipa \
+          python3 .github/scripts/make_altstore_source.py build/artifacts/RGram.ipa build/artifacts/rgram-source.json
+          gh release create "build-${BUILD_NUMBER}" build/artifacts/RGram.ipa build/artifacts/rgram-source.json \
             --repo "$GITHUB_REPOSITORY" \
             --title "R Gram ${APP_VERSION} (${BUILD_NUMBER})" \
             --notes "Unsigned R Gram ${APP_VERSION} (${BUILD_NUMBER}). Sign it with your own certificate (AltStore, Sideloadly, etc.) before installing."
