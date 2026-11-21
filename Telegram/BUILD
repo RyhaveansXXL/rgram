@@ -641,7 +641,7 @@ plist_fragment(
     template =
     """
     <key>CFBundleDisplayName</key>
-    <string>Telegram</string>
+    <string>R Gram</string>
     """
 )
 
@@ -1696,11 +1696,15 @@ plist_fragment(
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>Telegram</string>
+    <string>R Gram</string>
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}</string>
+    <key>RGramAPIBase</key>
+    <string>__RGRAM_API_BASE__</string>
+    <key>RGramUpdateRepo</key>
+    <string>__RGRAM_UPDATE_REPO__</string>
     <key>CFBundleName</key>
-    <string>Telegram</string>
+    <string>R Gram</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
