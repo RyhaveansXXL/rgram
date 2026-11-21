@@ -1,14 +1,12 @@
 name: CI
 
 on:
-  push:
-    branches: [ master ]
-
+  # Superseded by rgram-ipa.yml (push trigger disabled so both do not publish the same tag).
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-13
 
     steps:
       - uses: actions/checkout@v2

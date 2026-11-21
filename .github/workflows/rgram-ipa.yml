@@ -1,0 +1,89 @@
+name: R Gram IPA
+
+# Builds an unsigned R Gram .ipa on every push to master and publishes it as a GitHub Release
+# tagged `build-<number>`. The app's Settings ▸ "R Gram update" row reads the latest of these
+# releases (GET /repos/<owner>/<repo>/releases/latest) and offers the .ipa when it is newer.
+#
+# Optional repository variables (Settings ▸ Secrets and variables ▸ Actions ▸ Variables):
+#   RGRAM_API_BASE  HTTPS base URL of the R Gram registry (see rgram-server/). Empty = banners and
+#                   R Premium badges of other users are disabled.
+#   RGRAM_RUNNER    Runner label that has the Xcode version from versions.json (default: macos-latest).
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ vars.RGRAM_RUNNER || 'macos-latest' }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: '0'
+
+      - name: Set active Xcode path
+        run: |
+          XCODE_VERSION=$(python3 -c 'import json;print(json.load(open("versions.json"))["xcode"])')
+          sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
+
+      - name: Inject R Gram configuration
+        env:
+          RGRAM_API_BASE: ${{ vars.RGRAM_API_BASE }}
+        run: |
+          sed -i '' "s|__RGRAM_API_BASE__|${RGRAM_API_BASE}|; s|__RGRAM_UPDATE_REPO__|${GITHUB_REPOSITORY}|" Telegram/BUILD
+
+      - name: Create canonical source directory
+        run: |
+          sudo mkdir -p /Users/Shared
+          cp -R "$GITHUB_WORKSPACE" /Users/Shared/
+          mv "/Users/Shared/$(basename "$GITHUB_WORKSPACE")" /Users/Shared/telegram-ios
+
+      - name: Build the App
+        run: |
+          set -x
+          SOURCE_DIR=/Users/Shared/telegram-ios
+          BAZEL_USER_ROOT="/private/var/tmp/_bazel_containerhost"
+          cd "$SOURCE_DIR"
+
+          BUILD_NUMBER_OFFSET="$(cat build_number_offset)"
+          APP_VERSION=$(python3 -c 'import json;print(json.load(open("versions.json"))["app"])')
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          BUILD_NUMBER="$(($COMMIT_COUNT+$BUILD_NUMBER_OFFSET))"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+
+          python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
+          python3 -u build-system/Make/Make.py \
+            --bazelUserRoot="$BAZEL_USER_ROOT" \
+            build \
+            --configurationPath="build-system/appstore-configuration.json" \
+            --codesigningInformationPath=build-system/fake-codesigning \
+            --configuration=release_arm64 \
+            --buildNumber="$BUILD_NUMBER"
+
+          mkdir -p build/artifacts
+          for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa; do
+            cp "$f" build/artifacts/RGram.ipa
+          done
+          ls -la build/artifacts
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd /Users/Shared/telegram-ios
+          gh release create "build-${BUILD_NUMBER}" build/artifacts/RGram.ipa \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "R Gram ${APP_VERSION} (${BUILD_NUMBER})" \
+            --notes "Unsigned R Gram ${APP_VERSION} (${BUILD_NUMBER}). Sign it with your own certificate (AltStore, Sideloadly, etc.) before installing."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RGram-ipa
+          path: /Users/Shared/telegram-ios/build/artifacts/RGram.ipa
