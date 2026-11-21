@@ -1,0 +1,214 @@
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+index 7259ebd7..821034ae 100644
+--- a/.github/workflows/build.yml
++++ b/.github/workflows/build.yml
+@@ -1,9 +1,7 @@
+ name: CI
+ 
+ on:
+-  push:
+-    branches: [ master ]
+-
++  # Superseded by rgram-ipa.yml (push trigger disabled so both do not publish the same tag).
+   workflow_dispatch:
+ 
+ jobs:
+diff --git a/Telegram/BUILD b/Telegram/BUILD
+index 1ac8279b..d92dc1d5 100644
+--- a/Telegram/BUILD
++++ b/Telegram/BUILD
+@@ -641,7 +641,7 @@ plist_fragment(
+     template =
+     """
+     <key>CFBundleDisplayName</key>
+-    <string>Telegram</string>
++    <string>R Gram</string>
+     """
+ )
+ 
+@@ -1696,11 +1696,15 @@ plist_fragment(
+     <key>CFBundleDevelopmentRegion</key>
+     <string>en</string>
+     <key>CFBundleDisplayName</key>
+-    <string>Telegram</string>
++    <string>R Gram</string>
+     <key>CFBundleIdentifier</key>
+     <string>{telegram_bundle_id}</string>
++    <key>RGramAPIBase</key>
++    <string>__RGRAM_API_BASE__</string>
++    <key>RGramUpdateRepo</key>
++    <string>__RGRAM_UPDATE_REPO__</string>
+     <key>CFBundleName</key>
+-    <string>Telegram</string>
++    <string>R Gram</string>
+     <key>CFBundlePackageType</key>
+     <string>APPL</string>
+     <key>CFBundleSignature</key>
+diff --git a/Telegram/Telegram-iOS/en.lproj/InfoPlist.strings b/Telegram/Telegram-iOS/en.lproj/InfoPlist.strings
+index e77338c5..5cd4adbf 100644
+--- a/Telegram/Telegram-iOS/en.lproj/InfoPlist.strings
++++ b/Telegram/Telegram-iOS/en.lproj/InfoPlist.strings
+@@ -1,9 +1,9 @@
+ /* Localized versions of Info.plist keys */
+ 
+-"NSContactsUsageDescription" = "Telegram will continuously upload your contacts to its heavily encrypted cloud servers to let you connect with your friends across all your devices.";
+-"NSLocationWhenInUseUsageDescription" = "When you send your location to your friends, Telegram needs access to show them a map.";
+-"NSLocationAlwaysAndWhenInUseUsageDescription" = "When you choose to share your Live Location with friends in a chat, Telegram needs background access to your location to keep them updated for the duration of the live sharing.";
+-"NSLocationAlwaysUsageDescription" = "When you choose to share your live location with friends in a chat, Telegram needs background access to your location to keep them updated for the duration of the live sharing. You also need this to send locations from an Apple Watch.";
++"NSContactsUsageDescription" = "R Gram will continuously upload your contacts to its heavily encrypted cloud servers to let you connect with your friends across all your devices.";
++"NSLocationWhenInUseUsageDescription" = "When you send your location to your friends, R Gram needs access to show them a map.";
++"NSLocationAlwaysAndWhenInUseUsageDescription" = "When you choose to share your Live Location with friends in a chat, R Gram needs background access to your location to keep them updated for the duration of the live sharing.";
++"NSLocationAlwaysUsageDescription" = "When you choose to share your live location with friends in a chat, R Gram needs background access to your location to keep them updated for the duration of the live sharing. You also need this to send locations from an Apple Watch.";
+ "NSCameraUsageDescription" = "We need this so that you can take and share photos and videos, as well as make video calls.";
+ "NSPhotoLibraryUsageDescription" = "We need this so that you can share photos and videos from your photo library and save the ones you capture.";
+ "NSPhotoLibraryAddUsageDescription" = "We need this so that you can save photos and videos to your photo library and save the ones you capture.";
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/BUILD b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/BUILD
+index bd33bb7f..d0f41458 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/BUILD
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/BUILD
+@@ -10,6 +10,7 @@ swift_library(
+         "-warnings-as-errors",
+     ],
+     deps = [
++        "//submodules/RGram",
+         "//submodules/UrlWhitelist",
+         "//submodules/TelegramUI/Components/NavigationBarNode",
+         "//submodules/TelegramUI/Components/NavigationBarComponent",
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoHeaderNode.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoHeaderNode.swift
+index 7751e79e..0c53bc07 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoHeaderNode.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoHeaderNode.swift
+@@ -35,6 +35,7 @@ import ComponentDisplayAdapters
+ import ChatAvatarNavigationNode
+ import MultiScaleTextNode
+ import PeerInfoCoverComponent
++import RGram
+ import PeerInfoPaneNode
+ import MultilineTextComponent
+ import PeerInfoRatingComponent
+@@ -119,6 +120,7 @@ final class PeerInfoHeaderNode: ASDisplayNode {
+     
+     let backgroundBannerView: UIView
+     let backgroundCover = ComponentView<Empty>()
++    private let rgramBannerView = RGramBannerView(frame: .zero)
+     let giftsCover = ComponentView<Empty>()
+     var didSetupBackgroundCover = false
+     let buttonsContainerNode: SparseNode
+@@ -2483,6 +2485,15 @@ final class PeerInfoHeaderNode: ASDisplayNode {
+             } else {
+                 transition.updateFrame(view: backgroundCoverView, frame: CGRect(origin: CGPoint(x: -bannerInset, y: bannerFrame.height - backgroundCoverSize.height), size: backgroundCoverSize))
+             }
++            if self.rgramBannerView.superview == nil {
++                self.backgroundBannerView.insertSubview(self.rgramBannerView, aboveSubview: backgroundCoverView)
++            }
++            self.rgramBannerView.frame = backgroundCoverView.frame
++            if let peer, peer.id.namespace == Namespaces.Peer.CloudUser {
++                self.rgramBannerView.setUserId(peer.id.id._internalGetInt64Value())
++            } else {
++                self.rgramBannerView.setUserId(nil)
++            }
+             if backgroundCoverAnimateIn {
+                 if !self.isAvatarExpanded {
+                     backgroundCoverView.willAnimateIn()
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoInteraction.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoInteraction.swift
+index c4a877ab..10f14a35 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoInteraction.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoInteraction.swift
+@@ -77,6 +77,7 @@ final class PeerInfoInteraction {
+     let openBirthdatePrivacy: () -> Void
+     let openPremiumGift: () -> Void
+     let editingOpenPersonalChannel: () -> Void
++    let editingOpenRGramBanner: () -> Void
+     let openUsernameContextMenu: (ASDisplayNode, ContextGesture?) -> Void
+     let openBioContextMenu: (ASDisplayNode, ContextGesture?) -> Void
+     let openNoteContextMenu: (ASDisplayNode, ContextGesture?) -> Void
+@@ -161,6 +162,7 @@ final class PeerInfoInteraction {
+         openBirthdatePrivacy: @escaping () -> Void,
+         openPremiumGift: @escaping () -> Void,
+         editingOpenPersonalChannel: @escaping () -> Void,
++        editingOpenRGramBanner: @escaping () -> Void,
+         openUsernameContextMenu: @escaping (ASDisplayNode, ContextGesture?) -> Void,
+         openBioContextMenu: @escaping (ASDisplayNode, ContextGesture?) -> Void,
+         openNoteContextMenu: @escaping (ASDisplayNode, ContextGesture?) -> Void,
+@@ -244,6 +246,7 @@ final class PeerInfoInteraction {
+         self.openBirthdatePrivacy = openBirthdatePrivacy
+         self.openPremiumGift = openPremiumGift
+         self.editingOpenPersonalChannel = editingOpenPersonalChannel
++        self.editingOpenRGramBanner = editingOpenRGramBanner
+         self.openUsernameContextMenu = openUsernameContextMenu
+         self.openBioContextMenu = openBioContextMenu
+         self.openNoteContextMenu = openNoteContextMenu
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+index 463ab663..9911ba49 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+@@ -118,6 +118,7 @@ import EdgeEffect
+ import Pasteboard
+ import AccountPeerContextItem
+ import UrlWhitelist
++import RGram
+ import SideColumnLayout
+ import NavigationBarNode
+ import NavigationExpansionTransition
+@@ -780,6 +781,11 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
+                     return
+                 }
+                 self.editingOpenPersonalChannel()
++            }, editingOpenRGramBanner: { [weak self] in
++                guard let self, let controller = self.controller else {
++                    return
++                }
++                RGramBannerFlow.present(userId: self.context.account.peerId.id._internalGetInt64Value(), from: controller)
+             }, openUsernameContextMenu: { [weak self] node, gesture in
+                 guard let self else {
+                     return
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift
+index 8e3f9d25..d650d6aa 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift
+@@ -10,6 +10,7 @@ import SwiftSignalKit
+ import PhotoResources
+ import ItemListPeerItem
+ import DeviceAccess
++import RGram
+ import TelegramStringFormatting
+ import PeerNameColorItem
+ import WalletContext
+@@ -350,6 +351,11 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
+     items[.support]!.append(PeerInfoScreenDisclosureItem(id: 0, text: presentationData.strings.Settings_Support, icon: PresentationResourcesSettings.support, action: {
+         interaction.openSettings(.support)
+     }))
++    if RGramConfig.updateRepository != nil {
++        items[.support]!.append(PeerInfoScreenDisclosureItem(id: 100, text: RGramStrings.string(.updateRow), icon: PresentationResourcesSettings.upload, action: {
++            RGramUpdatePrompt.checkAndPresent()
++        }))
++    }
+     items[.support]!.append(PeerInfoScreenDisclosureItem(id: 1, text: presentationData.strings.Settings_FAQ, icon: PresentationResourcesSettings.faq, action: {
+         interaction.openSettings(.faq)
+     }))
+@@ -401,6 +407,8 @@ func settingsEditingItems(data: PeerInfoScreenData?, state: PeerInfoState, conte
+     let ItemPeerPersonalChannel = 13
+     let ItemPeerChatAutomation = 14
+     let ItemPeerChatAutomationHelp = 15
++    let ItemRGramBanner = 16
++    let ItemRGramPremium = 17
+     
+     items[.help]!.append(PeerInfoScreenCommentItem(id: ItemNameHelp, text: presentationData.strings.EditProfile_NameAndPhotoOrVideoHelp))
+     
+@@ -508,6 +516,16 @@ func settingsEditingItems(data: PeerInfoScreenData?, state: PeerInfoState, conte
+             interaction.editingOpenNameColorSetup()
+         }))
+         
++        do {
++            let ownId = context.account.peerId.id._internalGetInt64Value()
++            let rgramPremium = RGramRegistry.shared.isPremium(userId: ownId)
++            items[.info]!.append(PeerInfoScreenDisclosureItem(id: ItemRGramBanner, label: .none, text: RGramStrings.string(.banner), icon: PresentationResourcesSettings.yourColor, action: {
++                interaction.editingOpenRGramBanner()
++            }))
++            items[.info]!.append(PeerInfoScreenDisclosureItem(id: ItemRGramPremium, label: .text(rgramPremium ? RGramStrings.string(.premiumActive) : RGramStrings.string(.premiumInactive)), text: RGramStrings.string(.premium), icon: PresentationResourcesSettings.premium, hasArrow: false, action: {
++            }))
++        }
++        
+         var displayPersonalChannel = false
+         if data.personalChannel != nil {
+             displayPersonalChannel = true
