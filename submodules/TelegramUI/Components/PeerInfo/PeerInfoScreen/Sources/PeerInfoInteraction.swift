@@ -25,6 +25,9 @@ final class PeerInfoInteraction {
     let openDeleteReaction: (EngineMessage.Id) -> Void
     let openShareBot: () -> Void
     let openAddBotToGroup: () -> Void
+    let openAgentConnect: () -> Void
+    let setAgentActiveProvider: (String) -> Void
+    let openAgentProviderContextMenu: (String, ASDisplayNode, ContextGesture?) -> Void
     let performBotCommand: (PeerInfoBotCommand) -> Void
     let editingOpenPublicLinkSetup: () -> Void
     let editingOpenNameColorSetup: () -> Void
@@ -74,6 +77,7 @@ final class PeerInfoInteraction {
     let openBirthdatePrivacy: () -> Void
     let openPremiumGift: () -> Void
     let editingOpenPersonalChannel: () -> Void
+    let editingOpenRGramBanner: () -> Void
     let openUsernameContextMenu: (ASDisplayNode, ContextGesture?) -> Void
     let openBioContextMenu: (ASDisplayNode, ContextGesture?) -> Void
     let openNoteContextMenu: (ASDisplayNode, ContextGesture?) -> Void
@@ -106,6 +110,9 @@ final class PeerInfoInteraction {
         openDeleteReaction: @escaping (EngineMessage.Id) -> Void,
         openShareBot: @escaping () -> Void,
         openAddBotToGroup: @escaping () -> Void,
+        openAgentConnect: @escaping () -> Void,
+        setAgentActiveProvider: @escaping (String) -> Void,
+        openAgentProviderContextMenu: @escaping (String, ASDisplayNode, ContextGesture?) -> Void,
         performBotCommand: @escaping (PeerInfoBotCommand) -> Void,
         editingOpenPublicLinkSetup: @escaping () -> Void,
         editingOpenNameColorSetup: @escaping () -> Void,
@@ -155,6 +162,7 @@ final class PeerInfoInteraction {
         openBirthdatePrivacy: @escaping () -> Void,
         openPremiumGift: @escaping () -> Void,
         editingOpenPersonalChannel: @escaping () -> Void,
+        editingOpenRGramBanner: @escaping () -> Void,
         openUsernameContextMenu: @escaping (ASDisplayNode, ContextGesture?) -> Void,
         openBioContextMenu: @escaping (ASDisplayNode, ContextGesture?) -> Void,
         openNoteContextMenu: @escaping (ASDisplayNode, ContextGesture?) -> Void,
@@ -186,6 +194,9 @@ final class PeerInfoInteraction {
         self.openDeleteReaction = openDeleteReaction
         self.openShareBot = openShareBot
         self.openAddBotToGroup = openAddBotToGroup
+        self.openAgentConnect = openAgentConnect
+        self.setAgentActiveProvider = setAgentActiveProvider
+        self.openAgentProviderContextMenu = openAgentProviderContextMenu
         self.performBotCommand = performBotCommand
         self.editingOpenPublicLinkSetup = editingOpenPublicLinkSetup
         self.editingOpenNameColorSetup = editingOpenNameColorSetup
@@ -235,6 +246,7 @@ final class PeerInfoInteraction {
         self.openBirthdatePrivacy = openBirthdatePrivacy
         self.openPremiumGift = openPremiumGift
         self.editingOpenPersonalChannel = editingOpenPersonalChannel
+        self.editingOpenRGramBanner = editingOpenRGramBanner
         self.openUsernameContextMenu = openUsernameContextMenu
         self.openBioContextMenu = openBioContextMenu
         self.openNoteContextMenu = openNoteContextMenu
