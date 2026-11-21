@@ -23,6 +23,9 @@ url=https://github.com/bazelbuild/rules_swift.git
 [submodule "third-party/dav1d/dav1d"]
 	path = third-party/dav1d/dav1d
 	url = https://github.com/ali-fareed/dav1d.git
+[submodule "submodules/rlottie/rlottie"]
+	path = submodules/rlottie/rlottie
+	url = https://github.com/TelegramMessenger/rlottie.git
 [submodule "third-party/td/td"]
 	path = third-party/td/td
 	url = https://github.com/tdlib/td
